@@ -1,3 +1,5 @@
+#include <common/context.h>
+
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
@@ -6,10 +8,9 @@
 #pragma comment (lib, "Ws2_32.lib")
 
 int main(int argc, char** argv) {
-	WSAData wsaData{};
-	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (result != 0) {
-		std::cerr << "Failed to initialize WSA.\n";
+	common::WsaContext wsaContext{};
+	if (!wsaContext.Init()) {
+		std::cerr << "Failed to initialize WSA context.\n";
 		return -1;
 	}
 
@@ -21,10 +22,9 @@ int main(int argc, char** argv) {
 
 	addrinfo* resultAddr = nullptr;
 
-	result = getaddrinfo("127.0.0.1", "9000", &hints, &resultAddr);
+	int result = getaddrinfo("127.0.0.1", "9000", &hints, &resultAddr);
 	if (result != 0) {
 		std::cerr << "Failed to resolve address.\n";
-		WSACleanup();
 		return -1;
 	}
 
@@ -38,7 +38,6 @@ int main(int argc, char** argv) {
 		if (connectionSocket == INVALID_SOCKET) {
 			std::cerr << "Failed to create connection socket.\n";
 			freeaddrinfo(resultAddr);
-			WSACleanup();
 			return -1;
 		}
 
@@ -59,7 +58,6 @@ int main(int argc, char** argv) {
 
 	if (connectionSocket == INVALID_SOCKET) {
 		std::cerr << "Failed to open a connection socket.\n";
-		WSACleanup();
 		return -1;
 	}
 
@@ -69,7 +67,6 @@ int main(int argc, char** argv) {
 	if (result < 0) {
 		std::cerr << "Failed to send message.\n";
 		closesocket(connectionSocket);
-		WSACleanup();
 		return -1;
 	}
 
@@ -79,7 +76,6 @@ int main(int argc, char** argv) {
 	if (result != 0) {
 		std::cerr << "An error occurred during shutdown.\n";
 		closesocket(connectionSocket);
-		WSACleanup();
 		return -1;
 	}
 
@@ -89,7 +85,7 @@ int main(int argc, char** argv) {
 	{
 		result = recv(connectionSocket, recvBuffer, sizeof(recvBuffer), 0);
 		if (result > 0) {
-			std::cout << "Received " << result << "bytes.\n";
+			std::cout << "Received " << result << " bytes.\n";
 			std::cout << "  Message: " << std::string{ recvBuffer, static_cast<size_t>(result) } << "\n";
 		}
 		else if (result == 0) {
@@ -98,13 +94,11 @@ int main(int argc, char** argv) {
 		else {
 			std::cerr << "A receive error occurred: " << WSAGetLastError() << "\n";
 			closesocket(connectionSocket);
-			WSACleanup();
 			return -1;
 		}
 	} while (result > 0);
 
 	closesocket(connectionSocket);
-	WSACleanup();
 
 	return 0;
 }
