@@ -10,6 +10,8 @@ add_library(
     STATIC
     src/common/context.cpp
     src/common/context.h
+    src/common/types.cpp
+    src/common/types.h
 )
 
 target_include_directories(

@@ -1,4 +1,5 @@
 #include <common/context.h>
+#include <common/types.h>
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -28,14 +29,14 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	SOCKET connectionSocket{ INVALID_SOCKET };
+	common::Socket connectionSocket{};
 
 	for (auto currAddr = resultAddr; currAddr != nullptr; currAddr = currAddr->ai_next) {
 		connectionSocket = socket(
 			currAddr->ai_family,
 			currAddr->ai_socktype,
 			currAddr->ai_protocol);
-		if (connectionSocket == INVALID_SOCKET) {
+		if (!connectionSocket.IsValid()) {
 			std::cerr << "Failed to create connection socket.\n";
 			freeaddrinfo(resultAddr);
 			return -1;
@@ -46,8 +47,7 @@ int main(int argc, char** argv) {
 			currAddr->ai_addr,
 			static_cast<int>(currAddr->ai_addrlen));
 		if (result != 0) {
-			closesocket(connectionSocket);
-			connectionSocket = INVALID_SOCKET;
+			connectionSocket.Reset();
 			continue;
 		}
 		
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
 
 	freeaddrinfo(resultAddr);
 
-	if (connectionSocket == INVALID_SOCKET) {
+	if (!connectionSocket.IsValid()) {
 		std::cerr << "Failed to open a connection socket.\n";
 		return -1;
 	}
@@ -66,7 +66,6 @@ int main(int argc, char** argv) {
 	result = send(connectionSocket, message, static_cast<int>(strlen(message)), 0);
 	if (result < 0) {
 		std::cerr << "Failed to send message.\n";
-		closesocket(connectionSocket);
 		return -1;
 	}
 
@@ -75,7 +74,6 @@ int main(int argc, char** argv) {
 	result = shutdown(connectionSocket, SD_SEND);
 	if (result != 0) {
 		std::cerr << "An error occurred during shutdown.\n";
-		closesocket(connectionSocket);
 		return -1;
 	}
 
@@ -93,12 +91,9 @@ int main(int argc, char** argv) {
 		}
 		else {
 			std::cerr << "A receive error occurred: " << WSAGetLastError() << "\n";
-			closesocket(connectionSocket);
 			return -1;
 		}
 	} while (result > 0);
-
-	closesocket(connectionSocket);
 
 	return 0;
 }

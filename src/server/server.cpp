@@ -1,4 +1,5 @@
 #include <common/context.h>
+#include <common/types.h>
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -29,11 +30,11 @@ int main(int argc, char** argv) {
 		return -1;
 	}
 
-	SOCKET listenSocket = socket(
+	common::Socket listenSocket = socket(
 		resultAddr->ai_family,
 		resultAddr->ai_socktype,
 		resultAddr->ai_protocol);
-	if (listenSocket == INVALID_SOCKET) {
+	if (!listenSocket.IsValid()) {
 		std::cerr << "Failed to create listen socket.\n";
 		freeaddrinfo(resultAddr);
 		return -1;
@@ -45,7 +46,6 @@ int main(int argc, char** argv) {
 		static_cast<int>(resultAddr->ai_addrlen));
 	if (result != 0) {
 		std::cerr << "Failed to bind listen socket.\n";
-		closesocket(listenSocket);
 		freeaddrinfo(resultAddr);
 		return -1;
 	}
@@ -55,19 +55,17 @@ int main(int argc, char** argv) {
 	result = listen(listenSocket, SOMAXCONN);
 	if (result != 0) {
 		std::cerr << "Failed to start listening.\n";
-		closesocket(listenSocket);
 		return -1;
 	}
 
-	SOCKET connectionSocket = accept(listenSocket, nullptr, nullptr);
+	common::Socket connectionSocket = accept(listenSocket, nullptr, nullptr);
 	if (connectionSocket == INVALID_SOCKET) {
 		const int lastError = WSAGetLastError();
 		std::cerr << "Failed to accept connection (" << lastError << ").\n";
-		closesocket(listenSocket);
 		return -1;
 	}
 
-	closesocket(listenSocket);
+	listenSocket.Reset();
 
 	char recvBuffer[1500];
 
@@ -82,7 +80,6 @@ int main(int argc, char** argv) {
 			result = send(connectionSocket, recvBuffer, result, 0);
 			if (result < 0) {
 				std::cerr << "Failed to send answer message.\n";
-				closesocket(connectionSocket);
 				return -1;
 			}
 			else if (result > 0) {
@@ -94,15 +91,11 @@ int main(int argc, char** argv) {
 		}
 		else {
 			std::cerr << "A receive error occurred: " << WSAGetLastError() << "\n";
-			closesocket(connectionSocket);
 			return -1;
 		}
 	} while (result > 0);
 
-	result = shutdown(connectionSocket, SD_SEND);
-	
-	closesocket(connectionSocket);
-		
+	result = shutdown(connectionSocket, SD_SEND);		
 	if (result != 0) {
 		std::cerr << "An error occurred during shutdown.\n";
 		return -1;
