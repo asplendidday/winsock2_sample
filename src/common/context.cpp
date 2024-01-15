@@ -35,8 +35,53 @@ namespace common {
 		if (!mInitialized || mSocket.IsValid()) {
 			return false;
 		}
-		
-		return false;
+
+		addrinfo hints{};
+		ZeroMemory(&hints, sizeof(hints));
+		hints.ai_family = AF_INET;
+		hints.ai_socktype = SOCK_STREAM;
+		hints.ai_protocol = IPPROTO_TCP;
+		hints.ai_flags = AI_PASSIVE;
+
+		AddrInfo resultAddr{};
+
+		int result = getaddrinfo(nullptr, port.data(), &hints, resultAddr.Put());
+		if (result != 0) {
+			std::cerr << std::format("[Listen] Failed to resolve local address (error code: {}).\n", GetLastWsaError());
+			return false;
+		}
+
+		Socket listenSocket = socket(
+			resultAddr->ai_family,
+			resultAddr->ai_socktype,
+			resultAddr->ai_protocol);
+		if (!listenSocket.IsValid()) {
+			std::cerr << std::format("[Listen] Failed to create listen socket (error code: {}).\n", GetLastWsaError());
+			return false;
+		}
+
+		result = bind(
+			listenSocket,
+			resultAddr->ai_addr,
+			static_cast<int>(resultAddr->ai_addrlen));
+		if (result != 0) {
+			std::cerr << std::format("[Listen] Failed to bind listen socket (error code: {}).\n", GetLastWsaError());
+			return false;
+		}
+
+		result = listen(listenSocket, SOMAXCONN);
+		if (result != 0) {
+			std::cerr << std::format("[Listen] Failed to start listening (error code: {}).\n", GetLastWsaError());
+			return false;
+		}
+
+		mSocket = accept(listenSocket, nullptr, nullptr);
+		if (!mSocket.IsValid()) {
+			std::cerr << std::format("[Listen] Failed to accept incoming connection (error code: {}).\n", GetLastWsaError());
+			return false;
+		}
+
+		return true;
 	}
 
 	bool WsaContext::Connect(std::string_view hostname, std::string_view port) {
@@ -51,7 +96,7 @@ namespace common {
 		hints.ai_socktype = SOCK_STREAM;
 		hints.ai_protocol = IPPROTO_TCP;
 
-		common::AddrInfo resultAddr{};
+		AddrInfo resultAddr{};
 
 		int result = getaddrinfo(hostname.data(), port.data(), &hints, resultAddr.Put());
 		if (result != 0) {
