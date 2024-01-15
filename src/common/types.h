@@ -27,4 +27,29 @@ namespace common {
 		SOCKET mSocket{ INVALID_SOCKET };
 	};
 
+	class AddrInfo final {
+	public:
+		~AddrInfo();
+
+		AddrInfo(addrinfo* addrInfo = nullptr);
+		AddrInfo& operator=(addrinfo* addrinfo);
+
+		AddrInfo(const AddrInfo&) = delete;
+		AddrInfo& operator=(const AddrInfo&) = delete;
+
+		AddrInfo(AddrInfo&&) = delete;
+		AddrInfo& operator=(AddrInfo&&) = delete;
+
+		inline addrinfo* operator->() { return mAddrInfo; }
+
+		inline addrinfo** Put() { return &mAddrInfo; }
+
+		inline addrinfo* Get() { return mAddrInfo; }
+
+		void Reset();
+
+	private:
+		struct addrinfo* mAddrInfo{ nullptr };
+	};
+
 }

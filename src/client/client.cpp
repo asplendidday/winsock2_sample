@@ -21,9 +21,9 @@ int main(int argc, char** argv) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	addrinfo* resultAddr = nullptr;
+	common::AddrInfo resultAddr;
 
-	int result = getaddrinfo("127.0.0.1", "9000", &hints, &resultAddr);
+	int result = getaddrinfo("127.0.0.1", "9000", &hints, resultAddr.Put());
 	if (result != 0) {
 		std::cerr << "Failed to resolve address.\n";
 		return -1;
@@ -31,14 +31,13 @@ int main(int argc, char** argv) {
 
 	common::Socket connectionSocket{};
 
-	for (auto currAddr = resultAddr; currAddr != nullptr; currAddr = currAddr->ai_next) {
+	for (auto currAddr = resultAddr.Get(); currAddr != nullptr; currAddr = currAddr->ai_next) {
 		connectionSocket = socket(
 			currAddr->ai_family,
 			currAddr->ai_socktype,
 			currAddr->ai_protocol);
 		if (!connectionSocket.IsValid()) {
 			std::cerr << "Failed to create connection socket.\n";
-			freeaddrinfo(resultAddr);
 			return -1;
 		}
 
@@ -54,7 +53,7 @@ int main(int argc, char** argv) {
 		break;
 	}
 
-	freeaddrinfo(resultAddr);
+	resultAddr.Reset();
 
 	if (!connectionSocket.IsValid()) {
 		std::cerr << "Failed to open a connection socket.\n";

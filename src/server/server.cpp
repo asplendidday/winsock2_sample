@@ -22,9 +22,9 @@ int main(int argc, char** argv) {
 	hints.ai_protocol = IPPROTO_TCP;
 	hints.ai_flags = AI_PASSIVE;
 
-	addrinfo* resultAddr = nullptr;
+	common::AddrInfo resultAddr{};
 
-	int result = getaddrinfo(nullptr, "9000", &hints, &resultAddr);
+	int result = getaddrinfo(nullptr, "9000", &hints, resultAddr.Put());
 	if (result != 0) {
 		std::cerr << "Failed to resolve address.\n";
 		return -1;
@@ -36,7 +36,6 @@ int main(int argc, char** argv) {
 		resultAddr->ai_protocol);
 	if (!listenSocket.IsValid()) {
 		std::cerr << "Failed to create listen socket.\n";
-		freeaddrinfo(resultAddr);
 		return -1;
 	}
 
@@ -46,11 +45,10 @@ int main(int argc, char** argv) {
 		static_cast<int>(resultAddr->ai_addrlen));
 	if (result != 0) {
 		std::cerr << "Failed to bind listen socket.\n";
-		freeaddrinfo(resultAddr);
 		return -1;
 	}
 
-	freeaddrinfo(resultAddr);
+	resultAddr.Reset();
 
 	result = listen(listenSocket, SOMAXCONN);
 	if (result != 0) {

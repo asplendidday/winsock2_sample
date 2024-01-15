@@ -1,5 +1,7 @@
 #include <common/types.h>
 
+#include <WS2tcpip.h>
+
 #include <algorithm>
 
 namespace common {
@@ -35,6 +37,27 @@ namespace common {
 		if (IsValid()) {
 			closesocket(mSocket);
 			mSocket = INVALID_SOCKET;
+		}
+	}
+
+	AddrInfo::~AddrInfo() {
+		Reset();
+	}
+
+	AddrInfo::AddrInfo(addrinfo* addrInfo)
+		: mAddrInfo{ addrInfo }
+	{ }
+
+	AddrInfo& AddrInfo::operator=(addrinfo* addrInfo) {
+		Reset();
+		mAddrInfo = addrInfo;
+		return *this;
+	}
+
+	void AddrInfo::Reset() {
+		if (mAddrInfo != nullptr) {
+			freeaddrinfo(mAddrInfo);
+			mAddrInfo = nullptr;
 		}
 	}
 }
