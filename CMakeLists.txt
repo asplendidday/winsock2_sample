@@ -32,6 +32,7 @@ target_link_libraries(
     ${ServerApp}
     PRIVATE
         ${CommonLib}
+        Ws2_32.lib
 )
 
 # Client app
@@ -46,6 +47,7 @@ target_link_libraries(
     ${ClientApp}
     PRIVATE
         ${CommonLib}
+        Ws2_32.lib
 )
 
 # Common settings
