@@ -2,12 +2,36 @@ cmake_minimum_required(VERSION 3.27)
 
 project("winsock2_sample")
 
+# Common lib
+set(CommonLib "Common")
+
+add_library(
+    ${CommonLib}
+    STATIC
+    src/common/context.cpp
+    src/common/context.h
+    src/common/types.cpp
+    src/common/types.h
+)
+
+target_include_directories(
+    ${CommonLib}
+    PUBLIC
+        src/.
+)
+
 # Server app
 set(ServerApp "Server")
 
 add_executable(
     ${ServerApp}
     src/server/server.cpp
+)
+
+target_link_libraries(
+    ${ServerApp}
+    PRIVATE
+        ${CommonLib}
 )
 
 # Client app
@@ -18,9 +42,15 @@ add_executable(
     src/client/client.cpp
 )
 
+target_link_libraries(
+    ${ClientApp}
+    PRIVATE
+        ${CommonLib}
+)
+
 # Common settings
 set_target_properties(
-    ${ServerApp} ${ClientApp}
+    ${CommonLib} ${ServerApp} ${ClientApp}
     PROPERTIES
         CXX_STANDARD 20
 )

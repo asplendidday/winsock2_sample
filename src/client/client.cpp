@@ -1,3 +1,6 @@
+#include <common/context.h>
+#include <common/types.h>
+
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 
@@ -6,10 +9,9 @@
 #pragma comment (lib, "Ws2_32.lib")
 
 int main(int argc, char** argv) {
-	WSAData wsaData{};
-	int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (result != 0) {
-		std::cerr << "Failed to initialize WSA.\n";
+	common::WsaContext wsaContext{};
+	if (!wsaContext.Init()) {
+		std::cerr << "Failed to initialize WSA context.\n";
 		return -1;
 	}
 
@@ -19,26 +21,23 @@ int main(int argc, char** argv) {
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_protocol = IPPROTO_TCP;
 
-	addrinfo* resultAddr = nullptr;
+	common::AddrInfo resultAddr;
 
-	result = getaddrinfo("127.0.0.1", "9000", &hints, &resultAddr);
+	int result = getaddrinfo("127.0.0.1", "9000", &hints, resultAddr.Put());
 	if (result != 0) {
 		std::cerr << "Failed to resolve address.\n";
-		WSACleanup();
 		return -1;
 	}
 
-	SOCKET connectionSocket{ INVALID_SOCKET };
+	common::Socket connectionSocket{};
 
-	for (auto currAddr = resultAddr; currAddr != nullptr; currAddr = currAddr->ai_next) {
+	for (auto currAddr = resultAddr.Get(); currAddr != nullptr; currAddr = currAddr->ai_next) {
 		connectionSocket = socket(
 			currAddr->ai_family,
 			currAddr->ai_socktype,
 			currAddr->ai_protocol);
-		if (connectionSocket == INVALID_SOCKET) {
+		if (!connectionSocket.IsValid()) {
 			std::cerr << "Failed to create connection socket.\n";
-			freeaddrinfo(resultAddr);
-			WSACleanup();
 			return -1;
 		}
 
@@ -47,19 +46,17 @@ int main(int argc, char** argv) {
 			currAddr->ai_addr,
 			static_cast<int>(currAddr->ai_addrlen));
 		if (result != 0) {
-			closesocket(connectionSocket);
-			connectionSocket = INVALID_SOCKET;
+			connectionSocket.Reset();
 			continue;
 		}
 		
 		break;
 	}
 
-	freeaddrinfo(resultAddr);
+	resultAddr.Reset();
 
-	if (connectionSocket == INVALID_SOCKET) {
+	if (!connectionSocket.IsValid()) {
 		std::cerr << "Failed to open a connection socket.\n";
-		WSACleanup();
 		return -1;
 	}
 
@@ -68,8 +65,6 @@ int main(int argc, char** argv) {
 	result = send(connectionSocket, message, static_cast<int>(strlen(message)), 0);
 	if (result < 0) {
 		std::cerr << "Failed to send message.\n";
-		closesocket(connectionSocket);
-		WSACleanup();
 		return -1;
 	}
 
@@ -78,8 +73,6 @@ int main(int argc, char** argv) {
 	result = shutdown(connectionSocket, SD_SEND);
 	if (result != 0) {
 		std::cerr << "An error occurred during shutdown.\n";
-		closesocket(connectionSocket);
-		WSACleanup();
 		return -1;
 	}
 
@@ -89,7 +82,7 @@ int main(int argc, char** argv) {
 	{
 		result = recv(connectionSocket, recvBuffer, sizeof(recvBuffer), 0);
 		if (result > 0) {
-			std::cout << "Received " << result << "bytes.\n";
+			std::cout << "Received " << result << " bytes.\n";
 			std::cout << "  Message: " << std::string{ recvBuffer, static_cast<size_t>(result) } << "\n";
 		}
 		else if (result == 0) {
@@ -97,14 +90,9 @@ int main(int argc, char** argv) {
 		}
 		else {
 			std::cerr << "A receive error occurred: " << WSAGetLastError() << "\n";
-			closesocket(connectionSocket);
-			WSACleanup();
 			return -1;
 		}
 	} while (result > 0);
-
-	closesocket(connectionSocket);
-	WSACleanup();
 
 	return 0;
 }
